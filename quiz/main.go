@@ -11,69 +11,49 @@ import (
 )
 
 func main() {
+	var quizChan chan int
+	goodAnswers := 0
 
 	// Parse the csv
 	questions, answers := CSVParser("./problems.csv")
-	goodAnswers := 0
+
+	// Ask the questions, collect good answers
 	totalQuestions := len(questions)
 
-	// Add a timer, by default 30s
-	//timer := time.NewTimer(2 * time.Second)
-	//	var timerChan chan time.Duration
-	var quizChan chan string
-
-	// Stop the timer at the end of the function.
-	// Defers are called when the parent function exits.
-	//defer timer.Stop()
-	// t := time.Now()
-	// fmt.Printf("Temps restant : %d", int(time.Until(t.Add(30*time.Second))))
-	// go func() {
-	// 	timerChan <- time.Until(t.Add(30 * time.Second))
-	// }()
-	for {
-		go handleAnswers(questions, answers, quizChan)
-
-		select {
-		case <-quizChan:
-			continue
-		case <-time.After(30 * time.Second):
-			fmt.Print("Time's up ! \n")
-			return
-
+	// Ping toutes les secondes
+	// utiles pour shox les secondes restantes?
+	// for range time.Tick(time.Second) {
+	// 	println("ping!")
+	// }
+	go func() {
+		for i := 1; i <= totalQuestions; i++ {
+			fmt.Printf("Question %d : %s = ? \n", i, questions[i])
+			var answer string
+			_, err := fmt.Scanln(&answer)
+			if err != nil {
+				fmt.Printf("You didn't answer question %d \n", i)
+			}
+			if answer == answers[i] {
+				goodAnswers++
+			}
 		}
+		quizChan <- goodAnswers
+	}()
 
-	}
-	if goodAnswers > 5 {
-		fmt.Printf("Congratulations ! You have %d good answers on %d questions !\n", goodAnswers, totalQuestions)
+	// is select a goroutine?
+	select {
+	case goodAnswers = <-quizChan:
+		// Give correct answers number and total questions number
+		if goodAnswers > 5 {
+			fmt.Printf("Congratulations ! You have %d good answers on %d questions !\n", goodAnswers, totalQuestions)
+		}
+		fmt.Printf("Oups ! You only have %d good answers on %d questions... Let's try again \n", goodAnswers, totalQuestions)
+		return
+
+	case <-time.After(2 * time.Second):
+		fmt.Print("Time's up ! \n")
 		return
 	}
-	fmt.Printf("Oups ! You only have %d good answers on %d questions... Let's try again \n", goodAnswers, totalQuestions)
-
-}
-
-// Ask the questions, count good answers
-func handleAnswers(questions map[int]string, answers map[int]string, quizChan chan string) int {
-	goodAnswers := 0
-
-	totalQuestions := len(questions)
-	// fmt.Print(remainingTime)
-
-	for i := 1; i <= totalQuestions; i++ {
-		fmt.Printf("Question %d : %s = ? \n", i, questions[i])
-		var answer string
-		_, err := fmt.Scanln(&answer)
-		if err != nil {
-			fmt.Printf("You didn't answer question %d \n", i)
-		}
-		// Questions given invalid answers or unanswered are considered incorrect.
-		if answer == answers[i] {
-			goodAnswers++
-		}
-		quizChan <- answer
-	}
-	return goodAnswers
-	// Give correct answers number and total questions number
-
 }
 
 func CSVParser(path string) (map[int]string, map[int]string) {

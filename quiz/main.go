@@ -4,44 +4,79 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"os"
 	"io/ioutil"
 	"log"
 	"strings"
+	"time"
 )
 
-func main()  {
-	goodAnswers := 0
-	
+func main() {
+
 	// Parse the csv
 	questions, answers := CSVParser("./problems.csv")
-
-	// Ask the questions, collect good answers
+	goodAnswers := 0
 	totalQuestions := len(questions)
-	for i := 1; i <= len(questions); i++ {
-		fmt.Printf("Question %d : %s = ? \n", i, questions[i])
-		var answer string
-		_, err := fmt.Scanln(&answer)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return
-		}
-		if answer == answers[i] {
-			goodAnswers++
-		}
-	}
 
-	// Give correct answers number and total questions number
+	// Add a timer, by default 30s
+	//timer := time.NewTimer(2 * time.Second)
+	//	var timerChan chan time.Duration
+	var quizChan chan string
+
+	// Stop the timer at the end of the function.
+	// Defers are called when the parent function exits.
+	//defer timer.Stop()
+	// t := time.Now()
+	// fmt.Printf("Temps restant : %d", int(time.Until(t.Add(30*time.Second))))
+	// go func() {
+	// 	timerChan <- time.Until(t.Add(30 * time.Second))
+	// }()
+	for {
+		go handleAnswers(questions, answers, quizChan)
+
+		select {
+		case <-quizChan:
+			continue
+		case <-time.After(30 * time.Second):
+			fmt.Print("Time's up ! \n")
+			return
+
+		}
+
+	}
 	if goodAnswers > 5 {
 		fmt.Printf("Congratulations ! You have %d good answers on %d questions !\n", goodAnswers, totalQuestions)
 		return
 	}
 	fmt.Printf("Oups ! You only have %d good answers on %d questions... Let's try again \n", goodAnswers, totalQuestions)
-	
-	return
+
 }
 
-func CSVParser(path string) (map[int]string, map[int]string)  {
+// Ask the questions, count good answers
+func handleAnswers(questions map[int]string, answers map[int]string, quizChan chan string) int {
+	goodAnswers := 0
+
+	totalQuestions := len(questions)
+	// fmt.Print(remainingTime)
+
+	for i := 1; i <= totalQuestions; i++ {
+		fmt.Printf("Question %d : %s = ? \n", i, questions[i])
+		var answer string
+		_, err := fmt.Scanln(&answer)
+		if err != nil {
+			fmt.Printf("You didn't answer question %d \n", i)
+		}
+		// Questions given invalid answers or unanswered are considered incorrect.
+		if answer == answers[i] {
+			goodAnswers++
+		}
+		quizChan <- answer
+	}
+	return goodAnswers
+	// Give correct answers number and total questions number
+
+}
+
+func CSVParser(path string) (map[int]string, map[int]string) {
 	questions := make(map[int]string)
 	answers := make(map[int]string)
 	i := 1
@@ -51,7 +86,7 @@ func CSVParser(path string) (map[int]string, map[int]string)  {
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	// Parse the CSV content
 	CSVreader := csv.NewReader(strings.NewReader(string(content)))
 
@@ -70,6 +105,6 @@ func CSVParser(path string) (map[int]string, map[int]string)  {
 
 		i++
 	}
-	
+
 	return questions, answers
 }

@@ -16,9 +16,9 @@ import (
 func main() {
 	// Parse the csv
 	questions, answers := CSVParser("./problems.csv")
-
 	totalQuestions := len(questions)
 	var quizChan chan int
+	var goodAnswers int
 
 	// Ping toutes les secondes
 	// utiles pour shox les secondes restantes?
@@ -50,18 +50,16 @@ func main() {
 	timer := time.NewTimer(3 * time.Second)
 	// is select a goroutine?
 	select {
-	case goodAnswers := <-quizChan:
-		// Give correct answers number and total questions number
-		if goodAnswers > 5 {
-			fmt.Printf("Congratulations ! You have %d good answers on %d questions !\n", goodAnswers, totalQuestions)
-		}
-		fmt.Printf("Oups ! You only have %d good answers on %d questions... Let's try again \n", goodAnswers, totalQuestions)
-		return
-
+	case goodAnswers = <-quizChan:
 	case <-timer.C:
 		fmt.Print("Time's up ! \n")
-		return
 	}
+	// Give correct answers number and total questions number
+	if goodAnswers > 5 {
+		fmt.Printf("Congratulations ! You have %d good answers on %d questions !\n", goodAnswers, totalQuestions)
+	}
+	fmt.Printf("Oups ! You only have %d good answers on %d questions... Let's try again \n", goodAnswers, totalQuestions)
+	return
 }
 
 func startTimer(wg *sync.WaitGroup) {

@@ -1,6 +1,12 @@
-# Exercise #1: Quiz Game
+# About
+This exercice is the **"Quiz Game"** from [Gophercises](https://gophercises.com/exercises/quiz).
 
-[![exercise status: released](https://img.shields.io/badge/exercise%20status-released-green.svg?style=for-the-badge)](https://gophercises.com/exercises/quiz)
+- To run the program : `go run main.go`
+- To run the program with a flag to chang the timer : `go run main.go -timer=yourValue` (in seconds)
+
+I've let the details below to get the whole process. Enjoy :) 
+
+# Exercise #1: Quiz Game
 
 ## Exercise details
 

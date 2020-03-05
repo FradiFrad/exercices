@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/csv"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,41 +15,34 @@ import (
 )
 
 func main() {
-	// Parse the csv
-	questions, answers := CSVParser("./problems.csv")
-	totalQuestions := len(questions)
 	var quizChan chan int
 	var goodAnswers int
 
-	// Ping toutes les secondes
-	// utiles pour shox les secondes restantes?
-	// for range time.Tick(time.Second) {
-	// 	println("ping!")
-	// }
-	// func elapsed(what string) func() {
-	// 	start := time.Now()
-	// 	return func() {
-	// 		fmt.Printf("%s took %v\n", what, time.Since(start))
-	// 	}
-	// }
+	// Parse the csv
+	questions, answers := CSVParser("./problems.csv")
 
-	// func main() {
-	// 	defer elapsed("page")()  // <-- The trailing () is the deferred call
-	// 	time.Sleep(time.Second * 2)
-	// }
-	// Rappel: waitgroup pour attendre qqch avant executio d'un routine
+	totalQuestions := len(questions)
+
+	timerDuration := addATimerFlag()
+
+	// Reminder: waitgroup is mandatory to wait for a function to finished before launching a goroutine
 	var wg sync.WaitGroup
 	wg.Add(1)
 
 	// WARNING Note that a WaitGroup must be passed to functions by pointer.
-	startTimer(&wg)
+	startTimer(&wg, timerDuration)
 	wg.Wait()
 
+	// Launch the quiz in a gouroutine that puts good answers into a chan
 	go handleAnswers(questions, answers, quizChan, totalQuestions)
 
 	// Have to use timer instead of time to allow user to start it via input
-	timer := time.NewTimer(3 * time.Second)
+	timer := time.NewTimer(time.Duration(*timerDuration * int(time.Second)))
+
 	// is select a goroutine?
+	// 2 chans :
+	//	- one with the good answers : when the chan has it, it means the quiz is finished
+	//	- one with the timer : when the chan is filled, it means the time is up
 	select {
 	case goodAnswers = <-quizChan:
 	case <-timer.C:
@@ -62,8 +56,20 @@ func main() {
 	return
 }
 
-func startTimer(wg *sync.WaitGroup) {
-	fmt.Print("Hi! You're about to start a very interesting quiz... But you'll only have 30s to answer all the questions ! Ready? [Press any key to begin]\n")
+// Allow the user to custom the timer via a flag (-timer) in CLI
+// 	- Parse() is mandatory to take user input into account
+// Cf. https://golang.org/pkg/flag/#pkg-examples
+func addATimerFlag() *int {
+	timerDuration := flag.Int("timer", 30, "duration in seconds")
+	flag.Parse()
+	return timerDuration
+}
+
+// Give instructions about the timer to the user
+// 	- Scan() is mandatory to take user input into account
+// Cf. https://golang.org/pkg/bufio
+func startTimer(wg *sync.WaitGroup, timerDuration *int) {
+	fmt.Print("Hi! You're about to start a very interesting quiz...\n But you'll only have 30s to answer all the questions ! Ready?\n [Press any key to begin] or \n [Change the timer by launching the quiz again with 'go run main.go -timer=yourDuration' (in seconds)]\n")
 	scanner := bufio.NewScanner(os.Stdin)
 	if !scanner.Scan() {
 		fmt.Print("You didn't answer  \n")
@@ -72,6 +78,7 @@ func startTimer(wg *sync.WaitGroup) {
 	}
 }
 
+// Launch the quiz questions and put goodAnswers into a chan
 func handleAnswers(questions map[int]string, answers map[int]string, quizChan chan<- int, totalQuestions int) {
 	goodAnswers := 0
 	for i := 1; i <= totalQuestions; i++ {
@@ -88,6 +95,7 @@ func handleAnswers(questions map[int]string, answers map[int]string, quizChan ch
 	quizChan <- goodAnswers
 }
 
+// CSVParser parse the source file for the quiz
 func CSVParser(path string) (map[int]string, map[int]string) {
 	questions := make(map[int]string)
 	answers := make(map[int]string)
